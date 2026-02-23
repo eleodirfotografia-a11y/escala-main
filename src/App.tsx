@@ -37,6 +37,7 @@ type Service = {
   name: string;
   date: string;
   time: string;
+  is_published?: boolean;
 };
 
 type Assignment = {
@@ -226,6 +227,17 @@ export default function App() {
     else {
       setNewRole({ name: '' });
       fetchData();
+    }
+  };
+
+  const handlePublishService = async (id: number) => {
+    try {
+      const { error } = await supabase.from('services').update({ is_published: true }).eq('id', id);
+      if (error) throw error;
+      setServices(services.map(s => s.id === id ? { ...s, is_published: true } : s));
+    } catch (error) {
+      console.error('Error publishing service:', error);
+      alert('Erro ao publicar serviço.');
     }
   };
 
@@ -624,7 +636,7 @@ export default function App() {
                     </button>
                   </div>
                   <div className="divide-y divide-slate-100">
-                    {(userRole === 'admin' ? services.slice(0, 5) : services.filter(s => assignments.some(a => a.service_id === s.id && a.volunteer_id === volunteerId))).map(s => (
+                    {(userRole === 'admin' ? services.slice(0, 5) : services.filter(s => s.is_published && assignments.some(a => a.service_id === s.id && a.volunteer_id === volunteerId))).map(s => (
                       <div key={s.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
                         <div className="flex items-center space-x-4">
                           <div className="w-10 h-10 bg-slate-100 rounded-xl flex flex-col items-center justify-center text-slate-600">
@@ -1226,7 +1238,7 @@ export default function App() {
                 )}
 
                 <div className={`${userRole === 'admin' ? 'lg:col-span-2' : 'lg:col-span-3'} space-y-6`}>
-                  {services.map(service => {
+                  {services.filter(s => userRole === 'admin' || s.is_published).map(service => {
                     const serviceAssignments = assignments.filter(a => a.service_id === service.id);
                     if (serviceAssignments.length === 0) return null;
 
@@ -1234,8 +1246,21 @@ export default function App() {
                       <div key={service.id} className={`bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden ${userRole === 'volunteer' && serviceAssignments.some(a => a.volunteer_id === volunteerId) ? 'ring-2 ring-indigo-600' : ''}`}>
                         <div className="bg-indigo-600 p-4 text-white flex justify-between items-center">
                           <div>
-                            <h4 className="font-bold">{service.name}</h4>
-                            <p className="text-xs opacity-80">{new Date(service.date).toLocaleDateString('pt-BR')} às {service.time}</p>
+                            <div className="flex items-center space-x-2">
+                              <h4 className="font-bold">{service.name}</h4>
+                              {service.is_published ? (
+                                <span className="px-2 py-0.5 bg-emerald-500 text-white rounded-md text-[10px] uppercase font-bold tracking-wider">Publicada</span>
+                              ) : userRole === 'admin' && (
+                                <button
+                                  type="button"
+                                  onClick={() => handlePublishService(service.id)}
+                                  className="px-2 py-0.5 bg-amber-400 text-amber-900 rounded-md text-[10px] uppercase font-bold tracking-wider hover:bg-amber-300 transition-colors"
+                                >
+                                  Publicar
+                                </button>
+                              )}
+                            </div>
+                            <p className="text-xs opacity-80 mt-1">{new Date(service.date).toLocaleDateString('pt-BR')} às {service.time}</p>
                           </div>
                           <div className="flex items-center space-x-2">
                             {userRole === 'volunteer' && serviceAssignments.some(a => a.volunteer_id === volunteerId) && (
@@ -1261,50 +1286,53 @@ export default function App() {
                           </div>
                         </div>
                         <div className="divide-y divide-slate-100">
-                          {serviceAssignments.map(a => (
-                            <div key={a.id} className={`p-4 flex justify-between items-center group ${a.volunteer_id === volunteerId ? 'bg-indigo-50/50' : ''}`}>
-                              <div className="flex items-center space-x-4">
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${a.volunteer_id === volunteerId ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                                  {a.volunteer_name.charAt(0)}
-                                </div>
-                                <div>
-                                  <p className="font-bold text-slate-800">{a.volunteer_name} {a.volunteer_id === volunteerId ? '(Você)' : ''}</p>
-                                  <div className="flex items-center space-x-2">
-                                    <p className="text-xs text-indigo-600 font-bold uppercase tracking-wider">{a.role}</p>
-                                    {a.status === 'confirmado' && <CheckCircle2 size={12} className="text-emerald-500" />}
-                                    {a.status === 'negado' && <X size={12} className="text-rose-500" />}
+                          {serviceAssignments.map(a => {
+                            const vName = volunteers.find(v => v.id === a.volunteer_id)?.name || 'Desconhecido';
+                            return (
+                              <div key={a.id} className={`p-4 flex justify-between items-center group ${a.volunteer_id === volunteerId ? 'bg-indigo-50/50' : ''}`}>
+                                <div className="flex items-center space-x-4">
+                                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${a.volunteer_id === volunteerId ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                    {vName.charAt(0).toUpperCase()}
+                                  </div>
+                                  <div>
+                                    <p className="font-bold text-slate-800">{vName} {a.volunteer_id === volunteerId ? '(Você)' : ''}</p>
+                                    <div className="flex items-center space-x-2">
+                                      <p className="text-xs text-indigo-600 font-bold uppercase tracking-wider">{a.role}</p>
+                                      {a.status === 'confirmado' && <CheckCircle2 size={12} className="text-emerald-500" />}
+                                      {a.status === 'negado' && <X size={12} className="text-rose-500" />}
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
 
-                              <div className="flex items-center space-x-2">
-                                {userRole === 'volunteer' && a.volunteer_id === volunteerId && a.status === 'pendente' && (
-                                  <div className="flex items-center space-x-2">
+                                <div className="flex items-center space-x-2">
+                                  {userRole === 'volunteer' && a.volunteer_id === volunteerId && a.status === 'pendente' && (
+                                    <div className="flex items-center space-x-2">
+                                      <button
+                                        onClick={() => handleUpdateAssignmentStatus(a.id, 'confirmado')}
+                                        className="px-3 py-1.5 bg-emerald-100 text-emerald-600 rounded-lg text-xs font-bold hover:bg-emerald-200 transition-all flex items-center"
+                                      >
+                                        ACEITAR
+                                      </button>
+                                      <button
+                                        onClick={() => handleUpdateAssignmentStatus(a.id, 'negado')}
+                                        className="px-3 py-1.5 bg-rose-100 text-rose-600 rounded-lg text-xs font-bold hover:bg-rose-200 transition-all flex items-center"
+                                      >
+                                        RECUSAR
+                                      </button>
+                                    </div>
+                                  )}
+                                  {userRole === 'admin' && (
                                     <button
-                                      onClick={() => handleUpdateAssignmentStatus(a.id, 'confirmado')}
-                                      className="px-3 py-1.5 bg-emerald-100 text-emerald-600 rounded-lg text-xs font-bold hover:bg-emerald-200 transition-all flex items-center"
+                                      onClick={() => deleteItem('assignments', a.id)}
+                                      className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
                                     >
-                                      ACEITAR
+                                      <Trash2 size={16} />
                                     </button>
-                                    <button
-                                      onClick={() => handleUpdateAssignmentStatus(a.id, 'negado')}
-                                      className="px-3 py-1.5 bg-rose-100 text-rose-600 rounded-lg text-xs font-bold hover:bg-rose-200 transition-all flex items-center"
-                                    >
-                                      RECUSAR
-                                    </button>
-                                  </div>
-                                )}
-                                {userRole === 'admin' && (
-                                  <button
-                                    onClick={() => deleteItem('assignments', a.id)}
-                                    className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                                  >
-                                    <Trash2 size={16} />
-                                  </button>
-                                )}
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     );
