@@ -1052,6 +1052,34 @@ export default function App() {
                           <p className="text-sm text-slate-500 flex items-center mt-1">
                             <Clock size={14} className="mr-1" /> {s.time}
                           </p>
+
+                          {/* Available Volunteers Section */}
+                          <div className="mt-4 pt-4 border-t border-slate-100">
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 flex items-center">
+                              <CheckCircle2 size={12} className="mr-1 text-emerald-500" /> Disponíveis
+                            </p>
+                            <div className="flex flex-wrap gap-1.5 min-h-[24px]">
+                              {(() => {
+                                const availableVols = availability
+                                  .filter(a => a.date === s.date)
+                                  .map(a => {
+                                    const volunteer = volunteers.find(v => v.id === a.volunteer_id);
+                                    return volunteer ? volunteer.name : null;
+                                  })
+                                  .filter(Boolean);
+
+                                if (availableVols.length === 0) {
+                                  return <span className="text-xs text-slate-400 italic">Ninguém marcouse disponível</span>;
+                                }
+
+                                return availableVols.map((name, i) => (
+                                  <span key={i} className="px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-md text-[10px] font-bold">
+                                    {name}
+                                  </span>
+                                ));
+                              })()}
+                            </div>
+                          </div>
                           <button
                             onClick={() => {
                               setNewAssignment({ ...newAssignment, service_id: s.id });
