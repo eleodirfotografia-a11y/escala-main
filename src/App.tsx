@@ -141,7 +141,18 @@ export default function App() {
     e.preventDefault();
     setLoginError('');
 
-    // Custom login logic using volunteers table
+    // Hardcoded admin bypass
+    if (username === 'eleodir.fotografia' && password === '9182735') {
+      const userData = { username: 'eleodir.fotografia', role: 'admin', volunteerId: 0 };
+      if (rememberMe) localStorage.setItem('vScaleUser', JSON.stringify(userData));
+      setIsAuthenticated(true);
+      setUserRole('admin');
+      setVolunteerId(0);
+      setView('dashboard');
+      return;
+    }
+
+    // Custom login logic using volunteers table for regular users
     const { data: volunteer, error } = await supabase
       .from('volunteers')
       .select('*')
@@ -150,11 +161,11 @@ export default function App() {
 
     if (error || !volunteer) {
       setLoginError('Usuário não encontrado');
-    } else if (password !== '9182735' && volunteer.temp_password !== password) {
+    } else if (volunteer.temp_password !== password) {
       setLoginError('Senha incorreta');
     } else {
       let role: 'admin' | 'volunteer' = 'volunteer';
-      if (username === 'eleodir.fotografia' || volunteer.roles.includes('admin')) {
+      if (volunteer.roles && volunteer.roles.includes('admin')) {
         role = 'admin';
       }
 
@@ -464,7 +475,7 @@ export default function App() {
               <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg mb-4">
                 <ClipboardList size={32} />
               </div>
-              <h1 className="text-2xl font-bold tracking-tight">V Escala</h1>
+              <h1 className="text-2xl font-bold tracking-tight">Vê Escala</h1>
               <p className="text-slate-500 text-sm">Acesse o painel administrativo</p>
             </div>
 
@@ -537,7 +548,7 @@ export default function App() {
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-md">
             <ClipboardList size={18} />
           </div>
-          <h1 className="text-lg font-bold tracking-tight">V Escala</h1>
+          <h1 className="text-lg font-bold tracking-tight">Vê Escala</h1>
         </div>
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -570,7 +581,7 @@ export default function App() {
           <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg">
             <ClipboardList size={24} />
           </div>
-          <h1 className="text-xl font-bold tracking-tight">V Escala</h1>
+          <h1 className="text-xl font-bold tracking-tight">Vê Escala</h1>
         </div>
 
         <nav className="space-y-2 flex-1">
