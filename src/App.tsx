@@ -537,7 +537,7 @@ export default function App() {
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-md">
             <ClipboardList size={18} />
           </div>
-          <h1 className="text-lg font-bold tracking-tight">V Escala</h1>
+          <h1 className="text-lg font-bold tracking-tight">Escala Vê</h1>
         </div>
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -570,7 +570,7 @@ export default function App() {
           <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg">
             <ClipboardList size={24} />
           </div>
-          <h1 className="text-xl font-bold tracking-tight">V Escala</h1>
+          <h1 className="text-xl font-bold tracking-tight">Escala Vê</h1>
         </div>
 
         <nav className="space-y-2 flex-1">
