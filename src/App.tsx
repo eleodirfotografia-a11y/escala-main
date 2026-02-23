@@ -734,41 +734,43 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-                  <div className="p-6 border-bottom border-slate-100 flex justify-between items-center">
-                    <h3 className="font-bold text-lg">Voluntários Recentes</h3>
-                    <button onClick={() => setView('volunteers')} className="text-indigo-600 text-sm font-semibold flex items-center">
-                      Ver todos <ChevronRight size={16} />
-                    </button>
-                  </div>
-                  <div className="p-6 grid grid-cols-2 gap-4">
-                    {volunteers.slice(0, 4).map(v => (
-                      <div key={v.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                        <div className="flex justify-between items-start">
-                          <p className="font-bold text-slate-800 truncate">{v.name}</p>
-                          <button
-                            onClick={() => {
-                              setEditingVolunteer(v);
-                              setView('volunteers');
-                              window.scrollTo({ top: 0, behavior: 'smooth' });
-                            }}
-                            className="p-1 text-slate-300 hover:text-indigo-600 transition-colors"
-                          >
-                            <Edit2 size={14} />
-                          </button>
+                {userRole === 'admin' && (
+                  <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="p-6 border-bottom border-slate-100 flex justify-between items-center">
+                      <h3 className="font-bold text-lg">Voluntários Recentes</h3>
+                      <button onClick={() => setView('volunteers')} className="text-indigo-600 text-sm font-semibold flex items-center">
+                        Ver todos <ChevronRight size={16} />
+                      </button>
+                    </div>
+                    <div className="p-6 grid grid-cols-2 gap-4">
+                      {volunteers.slice(0, 4).map(v => (
+                        <div key={v.id} className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                          <div className="flex justify-between items-start">
+                            <p className="font-bold text-slate-800 truncate">{v.name}</p>
+                            <button
+                              onClick={() => {
+                                setEditingVolunteer(v);
+                                setView('volunteers');
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                              }}
+                              className="p-1 text-slate-300 hover:text-indigo-600 transition-colors"
+                            >
+                              <Edit2 size={14} />
+                            </button>
+                          </div>
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {v.roles.split(',').map(r => (
+                              <span key={r} className="px-2 py-0.5 bg-white border border-slate-200 rounded-md text-[10px] font-bold text-slate-500 uppercase">
+                                {r.trim()}
+                              </span>
+                            ))}
+                          </div>
                         </div>
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {v.roles.split(',').map(r => (
-                            <span key={r} className="px-2 py-0.5 bg-white border border-slate-200 rounded-md text-[10px] font-bold text-slate-500 uppercase">
-                              {r.trim()}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                    {volunteers.length === 0 && <p className="col-span-2 py-10 text-center text-slate-400 italic">Nenhum voluntário cadastrado.</p>}
+                      ))}
+                      {volunteers.length === 0 && <p className="col-span-2 py-10 text-center text-slate-400 italic">Nenhum voluntário cadastrado.</p>}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </motion.div>
           )}
