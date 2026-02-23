@@ -169,6 +169,7 @@ export default function App() {
       setIsAuthenticated(true);
       setUserRole(role);
       setVolunteerId(volunteer.id);
+      setView('dashboard');
     }
   };
 
@@ -179,6 +180,7 @@ export default function App() {
     setVolunteerId(null);
     setUsername('');
     setPassword('');
+    setView('dashboard');
   };
 
   const fetchData = async () => {
