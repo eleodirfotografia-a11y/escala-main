@@ -536,7 +536,7 @@ export default function App() {
           )}
           <SidebarItem
             icon={CheckCircle2}
-            label="Escalados"
+            label={userRole === 'admin' ? "Escalados" : "Minhas Escalas"}
             active={view === 'assignments'}
             onClick={() => { setView('assignments'); setIsMenuOpen(false); }}
           />
@@ -1129,8 +1129,12 @@ export default function App() {
               className="space-y-8"
             >
               <header>
-                <h2 className="text-3xl font-bold tracking-tight">Escalas</h2>
-                <p className="text-slate-500 mt-1">Atribua voluntários aos serviços.</p>
+                <h2 className="text-3xl font-bold tracking-tight">
+                  {userRole === 'admin' ? 'Escalas' : 'Minhas Escalas'}
+                </h2>
+                <p className="text-slate-500 mt-1">
+                  {userRole === 'admin' ? 'Atribua voluntários aos serviços.' : 'Confira os cultos nos quais você foi convocado para servir.'}
+                </p>
               </header>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -1238,7 +1242,11 @@ export default function App() {
                 )}
 
                 <div className={`${userRole === 'admin' ? 'lg:col-span-2' : 'lg:col-span-3'} space-y-6`}>
-                  {services.filter(s => userRole === 'admin' || s.is_published).map(service => {
+                  {services.filter(s => {
+                    if (userRole === 'admin') return true;
+                    if (!s.is_published) return false;
+                    return assignments.some(a => a.service_id === s.id && a.volunteer_id === volunteerId);
+                  }).map(service => {
                     const serviceAssignments = assignments.filter(a => a.service_id === service.id);
                     if (serviceAssignments.length === 0) return null;
 
