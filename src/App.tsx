@@ -71,6 +71,13 @@ type Profile = {
   volunteer_id: number | null;
 };
 
+
+const parseLocalDate = (dateString: string) => {
+  if (!dateString) return new Date();
+  const [year, month, day] = dateString.split('-');
+  return new Date(Number(year), Number(month) - 1, Number(day));
+};
+
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [userRole, setUserRole] = useState<'admin' | 'volunteer' | null>(null);
@@ -640,8 +647,8 @@ export default function App() {
                       <div key={s.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
                         <div className="flex items-center space-x-4">
                           <div className="w-10 h-10 bg-slate-100 rounded-xl flex flex-col items-center justify-center text-slate-600">
-                            <span className="text-[10px] font-bold uppercase">{new Date(s.date).toLocaleDateString('pt-BR', { month: 'short' })}</span>
-                            <span className="text-sm font-bold leading-none">{new Date(s.date).getDate() + 1}</span>
+                            <span className="text-[10px] font-bold uppercase">{parseLocalDate(s.date).toLocaleDateString('pt-BR', { month: 'short' })}</span>
+                            <span className="text-sm font-bold leading-none">{parseLocalDate(s.date).getDate()}</span>
                           </div>
                           <div>
                             <p className="font-bold text-slate-800">{s.name}</p>
@@ -1050,8 +1057,8 @@ export default function App() {
                         <div key={s.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm group hover:border-indigo-200 transition-all relative">
                           <div className="flex justify-between items-start mb-4">
                             <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex flex-col items-center justify-center">
-                              <span className="text-[10px] font-bold uppercase">{new Date(s.date).toLocaleDateString('pt-BR', { month: 'short' })}</span>
-                              <span className="text-lg font-bold leading-none">{new Date(s.date).getDate() + 1}</span>
+                              <span className="text-[10px] font-bold uppercase">{parseLocalDate(s.date).toLocaleDateString('pt-BR', { month: 'short' })}</span>
+                              <span className="text-lg font-bold leading-none">{parseLocalDate(s.date).getDate()}</span>
                             </div>
                             <button
                               onClick={() => deleteItem('services', s.id)}
@@ -1154,7 +1161,7 @@ export default function App() {
                         >
                           <option value={0}>Selecione o Serviço</option>
                           {services.map(s => (
-                            <option key={s.id} value={s.id}>{s.name} - {new Date(s.date).toLocaleDateString('pt-BR')}</option>
+                            <option key={s.id} value={s.id}>{s.name} - {parseLocalDate(s.date).toLocaleDateString('pt-BR')}</option>
                           ))}
                         </select>
                       </div>
@@ -1268,7 +1275,7 @@ export default function App() {
                                 </button>
                               )}
                             </div>
-                            <p className="text-xs opacity-80 mt-1">{new Date(service.date).toLocaleDateString('pt-BR')} às {service.time}</p>
+                            <p className="text-xs opacity-80 mt-1">{parseLocalDate(service.date).toLocaleDateString('pt-BR')} às {service.time}</p>
                           </div>
                           <div className="flex items-center space-x-2">
                             {userRole === 'volunteer' && serviceAssignments.some(a => a.volunteer_id === volunteerId) && (
@@ -1452,7 +1459,7 @@ export default function App() {
                               </div>
                               <div>
                                 <h4 className="font-bold text-slate-800">{service.name}</h4>
-                                <p className="text-xs text-slate-500">{new Date(service.date).toLocaleDateString('pt-BR')} às {service.time}</p>
+                                <p className="text-xs text-slate-500">{parseLocalDate(service.date).toLocaleDateString('pt-BR')} às {service.time}</p>
                               </div>
                             </div>
                           </div>
@@ -1491,17 +1498,17 @@ export default function App() {
                         <div className="flex justify-between items-start mb-2">
                           <div className="flex items-center space-x-3">
                             <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center font-bold">
-                              {new Date(av.date).getDate() + 1}
+                              {parseLocalDate(av.date).getDate()}
                             </div>
                             <div>
                               <h4 className="font-bold text-slate-800">
                                 {(() => {
                                   const service = services.find(s => s.date === av.date);
-                                  return service ? service.name : new Date(av.date).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+                                  return service ? service.name : parseLocalDate(av.date).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
                                 })()}
                               </h4>
                               <p className="text-[10px] text-slate-400 font-medium uppercase">
-                                {new Date(av.date).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                                {parseLocalDate(av.date).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
                               </p>
                               <p className="text-xs text-indigo-600 font-bold uppercase tracking-wider mt-1">{av.volunteer_name}</p>
                             </div>
