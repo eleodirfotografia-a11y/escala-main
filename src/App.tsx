@@ -142,8 +142,9 @@ export default function App() {
     setLoginError('');
 
     // Hardcoded admin bypass
-    if (username === 'eleodir.fotografia' && password === '9182735') {
-      const userData = { username: 'eleodir.fotografia', role: 'admin', volunteerId: 0 };
+    if ((username === 'eleodir.fotografia' && password === '9182735') ||
+      (username === 'admin' && password === 'admin@123')) {
+      const userData = { username: username, role: 'admin', volunteerId: 0 };
       if (rememberMe) localStorage.setItem('vScaleUser', JSON.stringify(userData));
       setIsAuthenticated(true);
       setUserRole('admin');
