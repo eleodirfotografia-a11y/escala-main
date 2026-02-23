@@ -350,14 +350,15 @@ export default function App() {
       return;
     }
 
-    const savedUser = localStorage.getItem('vScaleUser');
-    if (!savedUser) return;
-    const userData = JSON.parse(savedUser);
+    if (!volunteerId) {
+      setPasswordError('Usuário não identificado.');
+      return;
+    }
 
     const { error } = await supabase
       .from('volunteers')
       .update({ temp_password: newPassword })
-      .eq('username', userData.username);
+      .eq('id', volunteerId);
 
     if (error) {
       setPasswordError(error.message);
