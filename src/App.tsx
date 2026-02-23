@@ -22,6 +22,8 @@ import {
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { motion, AnimatePresence } from 'motion/react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 type Volunteer = {
   id: number;
@@ -86,7 +88,7 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [loginError, setLoginError] = useState('');
-  const [view, setView] = useState<'dashboard' | 'volunteers' | 'register-volunteer' | 'services' | 'assignments' | 'roles' | 'profile' | 'availability'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'volunteers' | 'register-volunteer' | 'services' | 'assignments' | 'roles' | 'profile' | 'availability' | 'reports'>('dashboard');
   const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -364,6 +366,55 @@ export default function App() {
     // No longer using profiles/approvals in the custom flow
   };
 
+  const generatePDF = () => {
+    const doc = new jsPDF();
+
+    // Add title
+    doc.setFontSize(18);
+    doc.text('Relatório Geral de Escalas', 14, 22);
+
+    // Add generation date
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, 14, 30);
+
+    // Prepare table data
+    const tableData = services.map(service => {
+      const serviceAssignments = assignments.filter(a => a.service_id === service.id);
+
+      const assignedNames = serviceAssignments.length > 0
+        ? serviceAssignments.map(a => `${a.volunteer_name} (${a.role})`).join('\n')
+        : 'Nenhum voluntário escalado';
+
+      return [
+        parseLocalDate(service.date).toLocaleDateString('pt-BR'),
+        service.time,
+        service.name,
+        service.is_published ? 'Sim' : 'Não',
+        assignedNames
+      ];
+    });
+
+    autoTable(doc, {
+      startY: 35,
+      head: [['Data', 'Horário', 'Evento', 'Publicado?', 'Escalados']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [79, 70, 229] }, // Indigo 600
+      styles: { fontSize: 9, cellPadding: 3 },
+      columnStyles: {
+        0: { cellWidth: 25 },
+        1: { cellWidth: 20 },
+        2: { cellWidth: 40 },
+        3: { cellWidth: 25 },
+        4: { cellWidth: 'auto' }
+      }
+    });
+
+    const fileName = `Escalas_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`;
+    doc.save(fileName);
+  };
+
   const SidebarItem = ({ icon: Icon, label, active, onClick }: any) => (
     <button
       onClick={onClick}
@@ -540,6 +591,12 @@ export default function App() {
                 label="Funções"
                 active={view === 'roles'}
                 onClick={() => { setView('roles'); setIsMenuOpen(false); }}
+              />
+              <SidebarItem
+                icon={ClipboardList}
+                label="Relatórios"
+                active={view === 'reports'}
+                onClick={() => { setView('reports'); setIsMenuOpen(false); }}
               />
             </>
           )}
@@ -1592,6 +1649,103 @@ export default function App() {
                     <Key size={18} className="mr-2" /> Atualizar Senha
                   </button>
                 </form>
+              </div>
+            </motion.div>
+          )}
+
+          {view === 'reports' && userRole === 'admin' && (
+            <motion.div
+              key="reports"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="space-y-8 max-w-5xl mx-auto"
+            >
+              <header className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                <div>
+                  <h2 className="text-3xl font-bold tracking-tight text-slate-900">Relatórios</h2>
+                  <p className="text-slate-500 mt-1">Visualize e exporte todas as escalas e voluntários.</p>
+                </div>
+                <button
+                  onClick={generatePDF}
+                  className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all flex items-center justify-center whitespace-nowrap"
+                >
+                  <ClipboardList size={20} className="mr-2" />
+                  Baixar PDF Completo
+                </button>
+              </header>
+
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+                  <h3 className="font-bold text-lg text-slate-800">Pré-visualização dos Dados</h3>
+                  <p className="text-sm text-slate-500 mt-1">Total de {services.length} evento(s) cadastrado(s).</p>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                        <th className="p-4 font-bold border-b border-slate-200">Data e Hora</th>
+                        <th className="p-4 font-bold border-b border-slate-200">Evento</th>
+                        <th className="p-4 font-bold border-b border-slate-200">Status</th>
+                        <th className="p-4 font-bold border-b border-slate-200">Equipe Escalada</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {services.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="p-8 text-center text-slate-400 italic">
+                            Nenhuma escala encontrada.
+                          </td>
+                        </tr>
+                      ) : (
+                        services.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map(service => {
+                          const serviceAssignments = assignments.filter(a => a.service_id === service.id);
+                          return (
+                            <tr key={service.id} className="hover:bg-slate-50/50 transition-colors">
+                              <td className="p-4">
+                                <p className="font-bold text-slate-800 whitespace-nowrap">
+                                  {parseLocalDate(service.date).toLocaleDateString('pt-BR')}
+                                </p>
+                                <p className="text-xs text-slate-500">{service.time}</p>
+                              </td>
+                              <td className="p-4">
+                                <span className="font-medium text-slate-700">{service.name}</span>
+                              </td>
+                              <td className="p-4">
+                                {service.is_published ? (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
+                                    Publicado
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                    Pendente
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-4">
+                                {serviceAssignments.length > 0 ? (
+                                  <div className="flex flex-col space-y-1">
+                                    {serviceAssignments.map(a => (
+                                      <div key={a.id} className="text-sm flex items-center">
+                                        <span className="font-medium text-slate-700 mr-2">{a.volunteer_name}</span>
+                                        <span className="text-[10px] uppercase font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                                          {a.role}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span className="text-sm text-slate-400 italic">Sem escalados</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </motion.div>
           )}
