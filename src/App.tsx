@@ -383,7 +383,7 @@ export default function App() {
       const serviceAssignments = assignments.filter(a => a.service_id === service.id);
 
       const assignedNames = serviceAssignments.length > 0
-        ? serviceAssignments.map(a => `${a.volunteer_name} (${a.role})`).join('\n')
+        ? serviceAssignments.map(a => `${volunteers.find(v => v.id === a.volunteer_id)?.name || 'Desconhecido'} (${a.role})`).join('\n')
         : 'Nenhum voluntário escalado';
 
       return [
@@ -1730,7 +1730,9 @@ export default function App() {
                                   <div className="flex flex-col space-y-1">
                                     {serviceAssignments.map(a => (
                                       <div key={a.id} className="text-sm flex items-center">
-                                        <span className="font-medium text-slate-700 mr-2">{a.volunteer_name}</span>
+                                        <span className="font-medium text-slate-700 mr-2">
+                                          {volunteers.find(v => v.id === a.volunteer_id)?.name || 'Desconhecido'}
+                                        </span>
                                         <span className="text-[10px] uppercase font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
                                           {a.role}
                                         </span>
