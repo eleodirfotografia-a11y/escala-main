@@ -287,6 +287,19 @@ export default function App() {
     }
   };
 
+  const handleResetPassword = async (id: number) => {
+    const newPassword = window.prompt("Digite a nova senha para este voluntário:");
+    if (!newPassword || newPassword.trim() === '') return;
+
+    const { error } = await supabase.from('volunteers').update({ temp_password: newPassword }).match({ id });
+    if (error) {
+      alert('Erro ao resetar senha: ' + error.message);
+    } else {
+      alert('Senha resetada com sucesso! O voluntário já pode acessar com a nova senha.');
+      fetchData();
+    }
+  };
+
   const handleAddService = async (e: FormEvent) => {
     e.preventDefault();
     const { error } = await supabase.from('services').insert([newService]);
@@ -808,12 +821,12 @@ export default function App() {
                         />
                       </div>
                       <div>
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">E-mail</label>
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Apelido (Usuário)</label>
                         <input
                           required
-                          type="email"
-                          value={editingVolunteer.email}
-                          onChange={e => setEditingVolunteer({ ...editingVolunteer, email: e.target.value })}
+                          type="text"
+                          value={editingVolunteer.username}
+                          onChange={e => setEditingVolunteer({ ...editingVolunteer, username: e.target.value })}
                           className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
                         />
                       </div>
@@ -825,6 +838,40 @@ export default function App() {
                           onChange={e => setEditingVolunteer({ ...editingVolunteer, phone: e.target.value })}
                           className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
                         />
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Funções</label>
+                        <div className="grid grid-cols-2 gap-2 mt-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                          {roles.map(r => {
+                            const isChecked = editingVolunteer.roles ? editingVolunteer.roles.split(',').includes(r.name) : false;
+                            return (
+                              <label key={r.id} className="flex items-center space-x-2 text-sm cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={e => {
+                                    const currentRoles = editingVolunteer.roles ? editingVolunteer.roles.split(',').filter(role => role !== '') : [];
+                                    let updatedRoles;
+                                    if (e.target.checked) updatedRoles = [...currentRoles, r.name];
+                                    else updatedRoles = currentRoles.filter(role => role !== r.name);
+                                    setEditingVolunteer({ ...editingVolunteer, roles: updatedRoles.join(',') });
+                                  }}
+                                  className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                                />
+                                <span className="text-slate-700 truncate font-semibold">{r.name}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      <div className="pt-2 pb-2">
+                        <button
+                          type="button"
+                          onClick={() => handleResetPassword(editingVolunteer.id)}
+                          className="w-full py-2 bg-rose-50 text-rose-600 rounded-xl font-bold hover:bg-rose-100 transition-all flex items-center justify-center text-sm"
+                        >
+                          <Key size={16} className="mr-2" /> Redefinir Senha
+                        </button>
                       </div>
                       <div className="flex space-x-2">
                         <button
