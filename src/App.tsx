@@ -119,6 +119,7 @@ export default function App() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [editingVolunteer, setEditingVolunteer] = useState<Volunteer | null>(null);
+  const [editingMinistry, setEditingMinistry] = useState<Ministry | null>(null);
 
   // Form states
   const [newMinistry, setNewMinistry] = useState({ name: '' });
@@ -305,6 +306,18 @@ export default function App() {
       setNewMinistry({ name: '' });
       fetchData();
       alert('Ministério criado com sucesso!');
+    }
+  };
+
+  const handleUpdateMinistry = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editingMinistry) return;
+    const { error } = await supabase.from('ministries').update({ name: editingMinistry.name }).match({ id: editingMinistry.id });
+    if (error) alert(error.message);
+    else {
+      setEditingMinistry(null);
+      fetchData();
+      alert('Ministério atualizado com sucesso!');
     }
   };
 
@@ -1074,35 +1087,50 @@ export default function App() {
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-1">
-                  <form onSubmit={handleAddMinistry} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4 sticky top-10">
+                  <form onSubmit={editingMinistry ? handleUpdateMinistry : handleAddMinistry} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4 sticky top-10">
                     <h3 className="font-bold text-lg flex items-center">
-                      <Church size={20} className="mr-2 text-indigo-600" /> Novo Ministério
+                      <Church size={20} className="mr-2 text-indigo-600" /> {editingMinistry ? 'Editar Ministério' : 'Novo Ministério'}
                     </h3>
                     <div>
                       <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Nome do Ministério</label>
                       <input
                         required
                         type="text"
-                        value={newMinistry.name}
-                        onChange={e => setNewMinistry({ name: e.target.value })}
+                        value={editingMinistry ? editingMinistry.name : newMinistry.name}
+                        onChange={e => editingMinistry ? setEditingMinistry({ ...editingMinistry, name: e.target.value }) : setNewMinistry({ name: e.target.value })}
                         className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
                         placeholder="Ex: Ministério de Louvor"
                       />
                     </div>
-                    <button
-                      type="submit"
-                      className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center justify-center shadow-md shadow-indigo-100"
-                    >
-                      <Plus size={20} className="mr-2" /> Cadastrar
-                    </button>
+                    {editingMinistry ? (
+                      <div className="flex space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditingMinistry(null)}
+                          className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-all"
+                        >
+                          Cancelar
+                        </button>
+                        <button type="submit" className="flex-[2] py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all flex items-center justify-center">
+                          <Edit2 size={18} className="mr-2" /> Salvar
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="submit"
+                        className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center justify-center shadow-md shadow-indigo-100"
+                      >
+                        <Plus size={20} className="mr-2" /> Cadastrar
+                      </button>
+                    )}
                   </form>
                 </div>
 
                 <div className="lg:col-span-2 space-y-4">
                   {ministries.map(m => (
-                    <div key={m.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-indigo-200 transition-colors">
+                    <div key={m.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-indigo-200 transition-colors group">
                       <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
+                        <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
                           <Church size={24} />
                         </div>
                         <div>
@@ -1110,6 +1138,43 @@ export default function App() {
                           <p className="text-sm text-slate-500">
                             ID: {m.id}
                           </p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                        <button
+                          onClick={() => {
+                            setNewVolunteer({ name: '', username: '', phone: '', roles: 'admin', password: '', ministry_id: m.id });
+                            setView('register-volunteer');
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                          className="flex-1 sm:flex-none px-4 py-2 bg-indigo-50 text-indigo-700 rounded-xl text-sm font-bold hover:bg-indigo-100 transition-all flex items-center justify-center"
+                        >
+                          <UserPlus size={16} className="mr-1.5" /> Criar Admin
+                        </button>
+
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => {
+                              setEditingMinistry(m);
+                              window.scrollTo({ top: 0, behavior: 'smooth' });
+                            }}
+                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                            title="Editar Ministério"
+                          >
+                            <Edit2 size={18} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm('Tem certeza que deseja excluir este ministério? Todos os voluntários e escalas associados também serão excluídos.')) {
+                                deleteItem('ministries', m.id);
+                              }
+                            }}
+                            className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                            title="Excluir Ministério"
+                          >
+                            <Trash2 size={18} />
+                          </button>
                         </div>
                       </div>
                     </div>
