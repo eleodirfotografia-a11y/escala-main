@@ -888,26 +888,32 @@ export default function App() {
                 active={view === 'roles'}
                 onClick={() => { setView('roles'); setIsMenuOpen(false); }}
               />
+              {ministryId !== null && (
+                <SidebarItem
+                  icon={ClipboardList}
+                  label="Relatórios"
+                  active={view === 'reports'}
+                  onClick={() => { setView('reports'); setIsMenuOpen(false); }}
+                />
+              )}
+            </>
+          )}
+          {ministryId !== null && (
+            <>
               <SidebarItem
-                icon={ClipboardList}
-                label="Relatórios"
-                active={view === 'reports'}
-                onClick={() => { setView('reports'); setIsMenuOpen(false); }}
+                icon={CheckCircle2}
+                label={userRole === 'admin' ? "Escalados" : "Minhas Escalas"}
+                active={view === 'assignments'}
+                onClick={() => { setView('assignments'); setIsMenuOpen(false); }}
+              />
+              <SidebarItem
+                icon={Clock}
+                label="Disponibilidade"
+                active={view === 'availability'}
+                onClick={() => { setView('availability'); setIsMenuOpen(false); }}
               />
             </>
           )}
-          <SidebarItem
-            icon={CheckCircle2}
-            label={userRole === 'admin' ? "Escalados" : "Minhas Escalas"}
-            active={view === 'assignments'}
-            onClick={() => { setView('assignments'); setIsMenuOpen(false); }}
-          />
-          <SidebarItem
-            icon={Clock}
-            label="Disponibilidade"
-            active={view === 'availability'}
-            onClick={() => { setView('availability'); setIsMenuOpen(false); }}
-          />
           <SidebarItem
             icon={Key}
             label="Alterar Senha"
