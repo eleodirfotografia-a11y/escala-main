@@ -1210,6 +1210,23 @@ export default function App() {
                       <h3 className="font-bold text-lg flex items-center">
                         <Edit2 size={20} className="mr-2 text-indigo-600" /> Editar Voluntário
                       </h3>
+
+                      {volunteerId === 0 && (
+                        <div>
+                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Ministério</label>
+                          <select
+                            value={editingVolunteer.ministry_id || 0}
+                            onChange={e => setEditingVolunteer({ ...editingVolunteer, ministry_id: Number(e.target.value) || null })}
+                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                          >
+                            <option value={0}>Sem Ministério</option>
+                            {ministries.map(m => (
+                              <option key={m.id} value={m.id}>{m.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
                       <div>
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Nome Completo</label>
                         <input
