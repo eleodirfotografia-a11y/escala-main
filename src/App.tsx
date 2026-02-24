@@ -20,7 +20,8 @@ import {
   Menu,
   X,
   Bell,
-  Church
+  Church,
+  ShieldAlert
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { motion, AnimatePresence } from 'motion/react';
@@ -354,9 +355,14 @@ export default function App() {
       ministry_id: volunteerId === 0 ? newVolunteer.ministry_id : ministryId
     };
 
-    if (volunteerId === 0 && (!dataToInsert.ministry_id || dataToInsert.ministry_id === 0)) {
+    if (volunteerId === 0 && view !== 'register-admin' && (!dataToInsert.ministry_id || dataToInsert.ministry_id === 0)) {
       setRegisterError('Selecione um ministério');
       return;
+    }
+
+    // Convert 0 to null for database
+    if (dataToInsert.ministry_id === 0) {
+      dataToInsert.ministry_id = null;
     }
 
     const { data, error } = await supabase
@@ -364,13 +370,18 @@ export default function App() {
       .insert([dataToInsert]);
 
     if (error) {
-      setRegisterError('Erro ao criar voluntário: ' + error.message);
+      setRegisterError('Erro ao criar usuário: ' + error.message);
       return;
     }
 
     setNewVolunteer({ name: '', username: '', phone: '', roles: '', password: '', ministry_id: 0 });
     fetchData();
-    alert('Voluntário cadastrado com sucesso! O acesso está liberado imediatamente.');
+    if (view === 'register-admin') {
+      alert('Administrador cadastrado com sucesso!');
+      setView('ministries');
+    } else {
+      alert('Voluntário cadastrado com sucesso! O acesso está liberado imediatamente.');
+    }
   };
 
   const handleUpdateVolunteer = async (e: FormEvent) => {
@@ -849,10 +860,22 @@ export default function App() {
               />
               <SidebarItem
                 icon={UserPlus}
-                label="Cadastrar Novo"
+                label="Cadastrar Voluntário"
                 active={view === 'register-volunteer'}
                 onClick={() => { setView('register-volunteer'); setIsMenuOpen(false); }}
               />
+              {ministryId === null && (
+                <SidebarItem
+                  icon={ShieldAlert}
+                  label="Cadastrar Admin"
+                  active={view === 'register-admin'}
+                  onClick={() => {
+                    setNewVolunteer({ name: '', username: '', phone: '', roles: 'admin', password: '', ministry_id: 0 });
+                    setView('register-admin');
+                    setIsMenuOpen(false);
+                  }}
+                />
+              )}
               <SidebarItem
                 icon={Calendar}
                 label="Escalas"
@@ -1144,7 +1167,7 @@ export default function App() {
                           <button
                             onClick={() => {
                               setNewVolunteer({ name: '', username: '', phone: '', roles: 'admin', password: '', ministry_id: m.id });
-                              setView('register-volunteer');
+                              setView('register-admin');
                               window.scrollTo({ top: 0, behavior: 'smooth' });
                             }}
                             className="flex-1 sm:flex-none px-4 py-2 bg-indigo-50 text-indigo-700 rounded-xl text-sm font-bold hover:bg-indigo-100 transition-all flex items-center justify-center"
@@ -1525,6 +1548,132 @@ export default function App() {
 
                 <button type="submit" className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all flex items-center justify-center text-lg">
                   <UserPlus size={24} className="mr-3" /> Concluir Cadastro
+                </button>
+              </form>
+            </motion.div>
+          )}
+
+          {view === 'register-admin' && userRole === 'admin' && ministryId === null && (
+            <motion.div
+              key="register-admin"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="max-w-2xl mx-auto space-y-8"
+            >
+              <header className="text-center">
+                <h2 className="text-3xl font-bold tracking-tight text-indigo-900">Cadastrar Administrador</h2>
+                <p className="text-slate-500 mt-1">Crie uma nova conta com privilégios de administrador para um ministério.</p>
+              </header>
+
+              <form onSubmit={handleAddVolunteer} className="bg-white p-8 rounded-3xl border border-indigo-200 shadow-xl shadow-indigo-100/50 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <h3 className="font-bold text-slate-800 border-b pb-2">Dados Pessoais</h3>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Ministério</label>
+                      <select
+                        required
+                        value={newVolunteer.ministry_id}
+                        onChange={e => setNewVolunteer({ ...newVolunteer, ministry_id: Number(e.target.value) })}
+                        className="w-full px-4 py-2.5 bg-indigo-50 border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                      >
+                        <option value={0}>Selecione um ministério</option>
+                        {ministries.map(m => (
+                          <option key={m.id} value={m.id}>{m.name}</option>
+                        ))}
+                      </select>
+                      <p className="text-[10px] text-slate-400 mt-1">Deixe sem seleção (0) apenas se for um Master Admin global.</p>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Nome Completo</label>
+                      <input
+                        required
+                        type="text"
+                        value={newVolunteer.name}
+                        onChange={e => setNewVolunteer({ ...newVolunteer, name: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                        placeholder="Ex: João Silva"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Telefone</label>
+                      <input
+                        type="text"
+                        value={newVolunteer.phone}
+                        onChange={e => setNewVolunteer({ ...newVolunteer, phone: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                        placeholder="(11) 99999-9999"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="font-bold text-slate-800 border-b pb-2">Credenciais de Acesso</h3>
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Apelido (Usuário)</label>
+                      <input
+                        required
+                        type="text"
+                        value={newVolunteer.username}
+                        onChange={e => setNewVolunteer({ ...newVolunteer, username: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                        placeholder="Ex: admin.joao"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Senha Inicial</label>
+                      <input
+                        required
+                        type="password"
+                        value={newVolunteer.password}
+                        onChange={e => setNewVolunteer({ ...newVolunteer, password: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                        placeholder="••••••••"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="font-bold text-slate-800 border-b pb-2">Atribuições e Funções</h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {roles.map(r => {
+                      const isChecked = newVolunteer.roles.split(',').includes(r.name);
+                      return (
+                        <label key={r.id} className={`flex items-center space-x-3 p-3 rounded-xl border transition-all cursor-pointer ${isChecked ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-slate-200 hover:bg-slate-100'}`}>
+                          <div className="relative flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={e => {
+                                const currentRoles = newVolunteer.roles ? newVolunteer.roles.split(',').filter(role => role !== '') : [];
+                                let updatedRoles;
+                                if (e.target.checked) updatedRoles = [...currentRoles, r.name];
+                                else updatedRoles = currentRoles.filter(role => role !== r.name);
+                                setNewVolunteer({ ...newVolunteer, roles: updatedRoles.join(',') });
+                              }}
+                              className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-slate-300 transition-all checked:border-indigo-600 checked:bg-indigo-600 focus:outline-none"
+                            />
+                            <CheckCircle2 className="absolute h-3.5 w-3.5 text-white opacity-0 peer-checked:opacity-100 left-0.5 pointer-events-none" />
+                          </div>
+                          <span className={`text-sm font-medium ${isChecked ? 'text-indigo-700' : 'text-slate-600'}`}>{r.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {registerError && (
+                  <div className="p-4 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 text-sm font-bold text-center">
+                    {registerError}
+                  </div>
+                )}
+
+                <button type="submit" className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all flex items-center justify-center text-lg">
+                  <ShieldAlert size={24} className="mr-3" /> Registrar Administrador
                 </button>
               </form>
             </motion.div>
