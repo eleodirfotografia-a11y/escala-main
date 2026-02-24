@@ -1126,53 +1126,84 @@ export default function App() {
 
                 <div className="lg:col-span-2 space-y-4">
                   {ministries.map(m => (
-                    <div key={m.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-indigo-200 transition-colors group">
-                      <div className="flex items-center space-x-4">
-                        <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
-                          <Church size={24} />
+                    <div key={m.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col gap-4 hover:border-indigo-200 transition-colors group">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
+                            <Church size={24} />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-slate-800 text-lg">{m.name}</h4>
+                            <p className="text-sm text-slate-500">
+                              ID: {m.id}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="font-bold text-slate-800 text-lg">{m.name}</h4>
-                          <p className="text-sm text-slate-500">
-                            ID: {m.id}
-                          </p>
-                        </div>
-                      </div>
 
-                      <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                        <button
-                          onClick={() => {
-                            setNewVolunteer({ name: '', username: '', phone: '', roles: 'admin', password: '', ministry_id: m.id });
-                            setView('register-volunteer');
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                          }}
-                          className="flex-1 sm:flex-none px-4 py-2 bg-indigo-50 text-indigo-700 rounded-xl text-sm font-bold hover:bg-indigo-100 transition-all flex items-center justify-center"
-                        >
-                          <UserPlus size={16} className="mr-1.5" /> Criar Admin
-                        </button>
-
-                        <div className="flex space-x-2">
+                        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                           <button
                             onClick={() => {
-                              setEditingMinistry(m);
+                              setNewVolunteer({ name: '', username: '', phone: '', roles: 'admin', password: '', ministry_id: m.id });
+                              setView('register-volunteer');
                               window.scrollTo({ top: 0, behavior: 'smooth' });
                             }}
-                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                            title="Editar Ministério"
+                            className="flex-1 sm:flex-none px-4 py-2 bg-indigo-50 text-indigo-700 rounded-xl text-sm font-bold hover:bg-indigo-100 transition-all flex items-center justify-center"
                           >
-                            <Edit2 size={18} />
+                            <UserPlus size={16} className="mr-1.5" /> Criar Admin
                           </button>
-                          <button
-                            onClick={() => {
-                              if (window.confirm('Tem certeza que deseja excluir este ministério? Todos os voluntários e escalas associados também serão excluídos.')) {
-                                deleteItem('ministries', m.id);
-                              }
-                            }}
-                            className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
-                            title="Excluir Ministério"
-                          >
-                            <Trash2 size={18} />
-                          </button>
+
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => {
+                                setEditingMinistry(m);
+                                window.scrollTo({ top: 0, behavior: 'smooth' });
+                              }}
+                              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                              title="Editar Ministério"
+                            >
+                              <Edit2 size={18} />
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm('Tem certeza que deseja excluir este ministério? Todos os voluntários e escalas associados também serão excluídos.')) {
+                                  deleteItem('ministries', m.id);
+                                }
+                              }}
+                              className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                              title="Excluir Ministério"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Show Admins for this Ministry */}
+                        <div className="w-full mt-4 pt-4 border-t border-slate-100">
+                          <h5 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Administradores do Ministério</h5>
+                          <div className="flex flex-col gap-2">
+                            {volunteers.filter(v => v.ministry_id === m.id && v.roles.includes('admin')).map(admin => (
+                              <div key={admin.id} className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100 group/admin">
+                                <div>
+                                  <p className="font-semibold text-sm text-slate-800">{admin.name}</p>
+                                  <p className="text-xs text-slate-500">{admin.username}</p>
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    setEditingVolunteer(admin);
+                                    setView('volunteers');
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                  }}
+                                  className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all opacity-0 group-hover/admin:opacity-100"
+                                  title="Editar Admin"
+                                >
+                                  <Edit2 size={16} />
+                                </button>
+                              </div>
+                            ))}
+                            {volunteers.filter(v => v.ministry_id === m.id && v.roles.includes('admin')).length === 0 && (
+                              <p className="text-xs text-slate-400 italic">Nenhum administrador cadastrado para este ministério.</p>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
