@@ -18,7 +18,8 @@ import {
   Tag,
   Key,
   Menu,
-  X
+  X,
+  Bell
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { motion, AnimatePresence } from 'motion/react';
@@ -73,6 +74,15 @@ type Profile = {
   volunteer_id: number | null;
 };
 
+type Notification = {
+  id: number;
+  volunteer_id: number;
+  title: string;
+  message: string;
+  is_read: boolean;
+  created_at: string;
+};
+
 
 const parseLocalDate = (dateString: string) => {
   if (!dateString) return new Date();
@@ -95,6 +105,8 @@ export default function App() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [availability, setAvailability] = useState<Availability[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [editingVolunteer, setEditingVolunteer] = useState<Volunteer | null>(null);
 
   // Form states
@@ -217,6 +229,18 @@ export default function App() {
     const { data: availabilityData, error: availabilityError } = await supabase.from('availability').select('*');
     if (availabilityError) console.error('Error fetching availability:', availabilityError);
     else setAvailability(availabilityData || []);
+
+    if (volunteerId) {
+      const { data: notifData, error: notifError } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('volunteer_id', volunteerId)
+        .order('created_at', { ascending: false });
+
+      if (!notifError && notifData) {
+        setNotifications(notifData);
+      }
+    }
 
     // Profiles logic removed for custom login flow
   };
@@ -388,6 +412,61 @@ export default function App() {
     else fetchData();
   };
 
+  const markNotificationsAsRead = async () => {
+    if (!volunteerId) return;
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('volunteer_id', volunteerId)
+      .eq('is_read', false);
+
+    if (!error) {
+      setNotifications(notifications.map(n => ({ ...n, is_read: true })));
+    }
+  };
+
+  const subscribeToWebPush = async () => {
+    if (!('Notification' in window)) {
+      alert('Seu navegador não suporta notificações de sistema.');
+      return;
+    }
+
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      alert('Permissão para notificações negada.');
+      return;
+    }
+
+    try {
+      const registration = await navigator.serviceWorker.ready;
+
+      // Checar se já existe subscrição (VAPID Key genérica de exemplo - O usuário precisa gerar uma real para ir pro ar)
+      // O VAPID public key DEVE ser gerado real para o Firebase/WebPush
+      const applicationServerKey = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuB-3qNDBDOcdBwHn7d2sP6V2o';
+
+      let subscription = await registration.pushManager.getSubscription();
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: applicationServerKey
+        });
+      }
+
+      // Salvar no BD
+      if (volunteerId) {
+        await supabase.from('push_subscriptions').upsert({
+          volunteer_id: volunteerId,
+          subscription: subscription.toJSON()
+        }, { onConflict: 'volunteer_id, subscription' });
+        alert('Notificações ativadas com sucesso no seu aparelho!');
+      }
+
+    } catch (err) {
+      console.error('Erro ao assinar push:', err);
+      alert('Erro ao ativar notificações. Tente novamente mais tarde.');
+    }
+  };
+
   const handleApproveUser = async (profileId: string) => {
     // No longer using profiles/approvals in the custom flow
   };
@@ -551,12 +630,62 @@ export default function App() {
           </div>
           <h1 className="text-lg font-bold tracking-tight">Vê Escala</h1>
         </div>
-        <button
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-all"
-        >
-          {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
+
+        <div className="flex items-center space-x-2">
+          <div className="relative">
+            <button
+              onClick={() => {
+                setIsNotificationsOpen(!isNotificationsOpen);
+                if (!isNotificationsOpen && notifications.some(n => !n.is_read)) {
+                  markNotificationsAsRead();
+                }
+              }}
+              className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-all"
+            >
+              <Bell size={20} />
+              {notifications.filter(n => !n.is_read).length > 0 && (
+                <span className="absolute top-1 right-1.5 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-white"></span>
+              )}
+            </button>
+
+            <AnimatePresence>
+              {isNotificationsOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-[60]"
+                >
+                  <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                    <h3 className="font-bold text-slate-800 text-sm">Notificações</h3>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="p-4 text-center text-slate-500 text-sm">Nenhuma notificação por enquanto.</div>
+                    ) : (
+                      notifications.map(notif => (
+                        <div key={notif.id} className={`p-3 border-b border-slate-100 last:border-0 ${!notif.is_read ? 'bg-indigo-50/50' : ''}`}>
+                          <h4 className="font-semibold text-slate-800 text-sm">{notif.title}</h4>
+                          <p className="text-slate-600 text-xs mt-1">{notif.message}</p>
+                          <span className="text-[10px] text-slate-400 mt-2 block">
+                            {new Date(notif.created_at).toLocaleDateString('pt-BR')} às {new Date(notif.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-all"
+          >
+            {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          </button>
+        </div>
       </header>
 
       {/* Sidebar Overlay */}
@@ -578,11 +707,60 @@ export default function App() {
         lg:translate-x-0 lg:static lg:inset-auto lg:z-auto
         ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        <div className="hidden lg:flex items-center space-x-3 mb-10 px-2">
-          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg">
-            <ClipboardList size={24} />
+        <div className="hidden lg:flex items-center justify-between mb-10 px-2">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+              <ClipboardList size={24} />
+            </div>
+            <h1 className="text-xl font-bold tracking-tight">Vê Escala</h1>
           </div>
-          <h1 className="text-xl font-bold tracking-tight">Vê Escala</h1>
+
+          <div className="relative">
+            <button
+              onClick={() => {
+                setIsNotificationsOpen(!isNotificationsOpen);
+                if (!isNotificationsOpen && notifications.some(n => !n.is_read)) {
+                  markNotificationsAsRead();
+                }
+              }}
+              className="p-2 text-slate-500 hover:bg-slate-100 rounded-lg transition-all"
+            >
+              <Bell size={20} />
+              {notifications.filter(n => !n.is_read).length > 0 && (
+                <span className="absolute top-1 right-1.5 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-white"></span>
+              )}
+            </button>
+
+            <AnimatePresence>
+              {isNotificationsOpen && (
+                <motion.div
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  className="absolute left-full ml-4 top-0 w-80 bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden z-[60]"
+                >
+                  <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                    <h3 className="font-bold text-slate-800 text-sm">Notificações</h3>
+                  </div>
+                  <div className="max-h-80 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="p-4 text-center text-slate-500 text-sm">Nenhuma notificação por enquanto.</div>
+                    ) : (
+                      notifications.map(notif => (
+                        <div key={notif.id} className={`p-4 border-b border-slate-100 md:border-b-0 md:border-l-[3px] md:mb-1 ${!notif.is_read ? 'md:border-indigo-500 bg-indigo-50/30' : 'md:border-transparent'}`}>
+                          <h4 className="font-semibold text-slate-800 text-sm">{notif.title}</h4>
+                          <p className="text-slate-600 text-sm mt-1 leading-snug">{notif.message}</p>
+                          <span className="text-xs text-slate-400 mt-2 block">
+                            {new Date(notif.created_at).toLocaleDateString('pt-BR')} às {new Date(notif.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
 
         <nav className="space-y-2 flex-1">
@@ -718,6 +896,26 @@ export default function App() {
                   <h3 className="text-2xl font-bold">{assignments.length}</h3>
                 </div>
               </div>
+
+              {userRole === 'volunteer' && (
+                <div className="bg-indigo-600 rounded-3xl p-6 text-white shadow-lg flex flex-col md:flex-row items-center justify-between">
+                  <div className="flex items-center mb-4 md:mb-0">
+                    <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center mr-4">
+                      <Bell size={24} className="text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-lg">Fique Sempre Avisado</h3>
+                      <p className="text-indigo-100 text-sm">Receba notificações no seu celular quando for escalado.</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={subscribeToWebPush}
+                    className="px-6 py-3 bg-white text-indigo-600 font-bold rounded-xl hover:bg-slate-50 transition-colors whitespace-nowrap"
+                  >
+                    Ativar Notificações
+                  </button>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
