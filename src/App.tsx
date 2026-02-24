@@ -19,12 +19,18 @@ import {
   Key,
   Menu,
   X,
-  Bell
+  Bell,
+  Church
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 import { motion, AnimatePresence } from 'motion/react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+
+type Ministry = {
+  id: number;
+  name: string;
+};
 
 type Volunteer = {
   id: number;
@@ -33,6 +39,7 @@ type Volunteer = {
   phone: string;
   roles: string;
   temp_password?: string;
+  ministry_id?: number | null;
 };
 
 type Service = {
@@ -41,6 +48,7 @@ type Service = {
   date: string;
   time: string;
   is_published?: boolean;
+  ministry_id?: number | null;
 };
 
 type Assignment = {
@@ -57,6 +65,7 @@ type Assignment = {
 type Role = {
   id: number;
   name: string;
+  ministry_id?: number | null;
 };
 
 type Availability = {
@@ -98,7 +107,9 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [loginError, setLoginError] = useState('');
-  const [view, setView] = useState<'dashboard' | 'volunteers' | 'register-volunteer' | 'services' | 'assignments' | 'roles' | 'profile' | 'availability' | 'reports'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'volunteers' | 'register-volunteer' | 'services' | 'assignments' | 'roles' | 'profile' | 'availability' | 'reports' | 'ministries'>('dashboard');
+  const [ministries, setMinistries] = useState<Ministry[]>([]);
+  const [ministryId, setMinistryId] = useState<number | null>(null);
   const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -110,7 +121,8 @@ export default function App() {
   const [editingVolunteer, setEditingVolunteer] = useState<Volunteer | null>(null);
 
   // Form states
-  const [newVolunteer, setNewVolunteer] = useState({ name: '', username: '', phone: '', roles: '', password: '' });
+  const [newMinistry, setNewMinistry] = useState({ name: '' });
+  const [newVolunteer, setNewVolunteer] = useState({ name: '', username: '', phone: '', roles: '', password: '', ministry_id: 0 });
   const [newService, setNewService] = useState({ name: '', date: '', time: '' });
   const [newAssignment, setNewAssignment] = useState({ service_id: 0, volunteer_id: 0, role: '' });
   const [newRole, setNewRole] = useState({ name: '' });
@@ -139,6 +151,7 @@ export default function App() {
       setIsAuthenticated(true);
       setUserRole(userData.role);
       setVolunteerId(userData.volunteerId);
+      setMinistryId(userData.ministryId || null);
     } else {
       setIsAuthenticated(false);
     }
@@ -156,12 +169,13 @@ export default function App() {
     // Hardcoded admin bypass
     if ((username === 'eleodir.fotografia' && password === '9182735') ||
       (username === 'admin' && password === 'admin@123')) {
-      const userData = { username: username, role: 'admin', volunteerId: 0 };
+      const userData = { username: username, role: 'admin', volunteerId: 0, ministryId: null };
       if (rememberMe) localStorage.setItem('vScaleUser', JSON.stringify(userData));
       setIsAuthenticated(true);
       setUserRole('admin');
       setVolunteerId(0);
-      setView('dashboard');
+      setMinistryId(null);
+      setView('ministries');
       return;
     }
 
@@ -185,7 +199,8 @@ export default function App() {
       const userData = {
         username: volunteer.username,
         role: role,
-        volunteerId: volunteer.id
+        volunteerId: volunteer.id,
+        ministryId: volunteer.ministry_id
       };
 
       if (rememberMe) {
@@ -195,6 +210,7 @@ export default function App() {
       setIsAuthenticated(true);
       setUserRole(role);
       setVolunteerId(volunteer.id);
+      setMinistryId(volunteer.ministry_id);
       setView('dashboard');
     }
   };
@@ -204,31 +220,45 @@ export default function App() {
     setIsAuthenticated(false);
     setUserRole(null);
     setVolunteerId(null);
+    setMinistryId(null);
     setUsername('');
     setPassword('');
     setView('dashboard');
   };
 
   const fetchData = async () => {
-    const { data: volunteersData, error: volunteersError } = await supabase.from('volunteers').select('*');
+    if (volunteerId === 0) {
+      const { data: minData } = await supabase.from('ministries').select('*').order('name');
+      if (minData) setMinistries(minData);
+
+      const { data: volData } = await supabase.from('volunteers').select('*');
+      if (volData) setVolunteers(volData);
+      return;
+    }
+
+    if (!ministryId) return;
+
+    const { data: volunteersData, error: volunteersError } = await supabase.from('volunteers').select('*').eq('ministry_id', ministryId);
     if (volunteersError) console.error('Error fetching volunteers:', volunteersError);
     else setVolunteers(volunteersData || []);
 
-    const { data: servicesData, error: servicesError } = await supabase.from('services').select('*');
+    const { data: servicesData, error: servicesError } = await supabase.from('services').select('*').eq('ministry_id', ministryId);
     if (servicesError) console.error('Error fetching services:', servicesError);
     else setServices(servicesData || []);
 
-    const { data: assignmentsData, error: assignmentsError } = await supabase.from('assignments').select('*');
-    if (assignmentsError) console.error('Error fetching assignments:', assignmentsError);
-    else setAssignments(assignmentsData || []);
-
-    const { data: rolesData, error: rolesError } = await supabase.from('roles').select('*');
+    const { data: rolesData, error: rolesError } = await supabase.from('roles').select('*').eq('ministry_id', ministryId);
     if (rolesError) console.error('Error fetching roles:', rolesError);
     else setRoles(rolesData || []);
 
+    const svcIds = (servicesData || []).map(s => s.id);
+    const { data: assignmentsData, error: assignmentsError } = await supabase.from('assignments').select('*');
+    if (assignmentsError) console.error('Error fetching assignments:', assignmentsError);
+    else setAssignments((assignmentsData || []).filter(a => svcIds.includes(a.service_id)));
+
+    const volIds = (volunteersData || []).map(v => v.id);
     const { data: availabilityData, error: availabilityError } = await supabase.from('availability').select('*');
     if (availabilityError) console.error('Error fetching availability:', availabilityError);
-    else setAvailability(availabilityData || []);
+    else setAvailability((availabilityData || []).filter(a => volIds.includes(a.volunteer_id)));
 
     if (volunteerId) {
       const { data: notifData, error: notifError } = await supabase
@@ -267,9 +297,20 @@ export default function App() {
     else fetchData();
   };
 
+  const handleAddMinistry = async (e: FormEvent) => {
+    e.preventDefault();
+    const { error } = await supabase.from('ministries').insert([newMinistry]);
+    if (error) alert(error.message);
+    else {
+      setNewMinistry({ name: '' });
+      fetchData();
+      alert('Ministério criado com sucesso!');
+    }
+  };
+
   const handleAddRole = async (e: FormEvent) => {
     e.preventDefault();
-    const { error } = await supabase.from('roles').insert([newRole]);
+    const { error } = await supabase.from('roles').insert([{ ...newRole, ministry_id: ministryId }]);
     if (error) alert(error.message);
     else {
       setNewRole({ name: '' });
@@ -292,22 +333,30 @@ export default function App() {
     e.preventDefault();
     setRegisterError('');
 
+    const dataToInsert = {
+      name: newVolunteer.name,
+      username: newVolunteer.username,
+      phone: newVolunteer.phone,
+      roles: newVolunteer.roles,
+      temp_password: newVolunteer.password,
+      ministry_id: volunteerId === 0 ? newVolunteer.ministry_id : ministryId
+    };
+
+    if (volunteerId === 0 && (!dataToInsert.ministry_id || dataToInsert.ministry_id === 0)) {
+      setRegisterError('Selecione um ministério');
+      return;
+    }
+
     const { data, error } = await supabase
       .from('volunteers')
-      .insert([{
-        name: newVolunteer.name,
-        username: newVolunteer.username,
-        phone: newVolunteer.phone,
-        roles: newVolunteer.roles,
-        temp_password: newVolunteer.password
-      }]);
+      .insert([dataToInsert]);
 
     if (error) {
       setRegisterError('Erro ao criar voluntário: ' + error.message);
       return;
     }
 
-    setNewVolunteer({ name: '', username: '', phone: '', roles: '', password: '' });
+    setNewVolunteer({ name: '', username: '', phone: '', roles: '', password: '', ministry_id: 0 });
     fetchData();
     alert('Voluntário cadastrado com sucesso! O acesso está liberado imediatamente.');
   };
@@ -338,7 +387,7 @@ export default function App() {
 
   const handleAddService = async (e: FormEvent) => {
     e.preventDefault();
-    const { error } = await supabase.from('services').insert([newService]);
+    const { error } = await supabase.from('services').insert([{ ...newService, ministry_id: ministryId }]);
     if (error) console.error('Error adding service:', error);
     else {
       setNewService({ name: '', date: '', time: '' });
@@ -764,12 +813,21 @@ export default function App() {
         </div>
 
         <nav className="space-y-2 flex-1">
-          <SidebarItem
-            icon={LayoutDashboard}
-            label="Dashboard"
-            active={view === 'dashboard'}
-            onClick={() => { setView('dashboard'); setIsMenuOpen(false); }}
-          />
+          {volunteerId === 0 ? (
+            <SidebarItem
+              icon={Church}
+              label="Ministérios"
+              active={view === 'ministries'}
+              onClick={() => { setView('ministries'); setIsMenuOpen(false); }}
+            />
+          ) : (
+            <SidebarItem
+              icon={LayoutDashboard}
+              label="Dashboard"
+              active={view === 'dashboard'}
+              onClick={() => { setView('dashboard'); setIsMenuOpen(false); }}
+            />
+          )}
           {userRole === 'admin' && (
             <>
               <SidebarItem
@@ -999,6 +1057,74 @@ export default function App() {
             </motion.div>
           )}
 
+          {view === 'ministries' && volunteerId === 0 && (
+            <motion.div
+              key="ministries"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="space-y-8"
+            >
+              <header className="flex justify-between items-end">
+                <div>
+                  <h2 className="text-3xl font-bold tracking-tight">Gerenciar Ministérios</h2>
+                  <p className="text-slate-500 mt-1">Visão Master Admin: Crie e visualize ministérios.</p>
+                </div>
+              </header>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-1">
+                  <form onSubmit={handleAddMinistry} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4 sticky top-10">
+                    <h3 className="font-bold text-lg flex items-center">
+                      <Church size={20} className="mr-2 text-indigo-600" /> Novo Ministério
+                    </h3>
+                    <div>
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Nome do Ministério</label>
+                      <input
+                        required
+                        type="text"
+                        value={newMinistry.name}
+                        onChange={e => setNewMinistry({ name: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                        placeholder="Ex: Ministério de Louvor"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center justify-center shadow-md shadow-indigo-100"
+                    >
+                      <Plus size={20} className="mr-2" /> Cadastrar
+                    </button>
+                  </form>
+                </div>
+
+                <div className="lg:col-span-2 space-y-4">
+                  {ministries.map(m => (
+                    <div key={m.id} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-indigo-200 transition-colors">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
+                          <Church size={24} />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-slate-800 text-lg">{m.name}</h4>
+                          <p className="text-sm text-slate-500">
+                            ID: {m.id}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {ministries.length === 0 && (
+                    <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-300">
+                      <Church size={48} className="mx-auto text-slate-300 mb-4" />
+                      <p className="text-slate-400 font-medium">Nenhum ministério cadastrado ainda.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           {view === 'volunteers' && userRole === 'admin' && (
             <motion.div
               key="volunteers"
@@ -1183,6 +1309,24 @@ export default function App() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <h3 className="font-bold text-slate-800 border-b pb-2">Dados Pessoais</h3>
+
+                    {volunteerId === 0 && (
+                      <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Ministério</label>
+                        <select
+                          required
+                          value={newVolunteer.ministry_id}
+                          onChange={e => setNewVolunteer({ ...newVolunteer, ministry_id: Number(e.target.value) })}
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                        >
+                          <option value={0}>Selecione um ministério</option>
+                          {ministries.map(m => (
+                            <option key={m.id} value={m.id}>{m.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
                     <div>
                       <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1 block">Nome Completo</label>
                       <input
