@@ -161,7 +161,7 @@ export default function App() {
     if (isAuthenticated && userRole) {
       fetchData();
     }
-  }, [isAuthenticated, userRole]);
+  }, [isAuthenticated, userRole, ministryId]);
 
   const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
